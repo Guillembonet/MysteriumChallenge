@@ -19,11 +19,17 @@ func Client(serverPort int, clientPort int) {
 		return
 	}
 
+  fromAddr, err := net.ResolveUDPAddr("udp4", "192.168.42.116:11001")
+	if err != nil {
+		fmt.Printf("Could not resolve %s\n", "192.168.42.116:11001")
+		return
+	}
+
 	fmt.Printf("Trying to punch a hole to %s:%d\n", remote, serverPort)
 
 	// Initiate the transaction (force IPv4 to demo firewall punch)
-  laddr, err := net.ResolveUDPAddr("udp4", "<source_int>:" + strconv.Itoa(clientPort))
-	conn, err := net.DialUDP("udp4", laddr, toAddr)
+	conn, err := net.DialUDP("udp4", fromAddr, toAddr)
+  fmt.Printf("%s\n", conn.LocalAddr())
 	defer conn.Close()
 
 	if err != nil {
@@ -34,7 +40,7 @@ func Client(serverPort int, clientPort int) {
 	// Initiate the transaction, creating the hole
 	msg := "trying..."
 	fmt.Fprintf(conn, msg)
-	fmt.Printf("Sent a UDP packet to %s:%d\n\tSent: %s\n", remote, serverPort, msg)
+	fmt.Printf("Sent a UDP packet to %s:%d from %s\n\tSent: %s\n", remote, serverPort, fromAddr, msg)
 
 	// Await a response through our firewall hole
 	msgLen, fromAddr, err := conn.ReadFromUDP(msgBuf)
