@@ -19,9 +19,9 @@ func Client(serverPort int, clientPort int) {
 		return
 	}
 
-  fromAddr, err := net.ResolveUDPAddr("udp4", "192.168.42.116:11001")
+  fromAddr, err := net.ResolveUDPAddr("udp4", "192.168.42.116:" + strconv.Itoa(serverPort))
 	if err != nil {
-		fmt.Printf("Could not resolve %s\n", "192.168.42.116:11001")
+		fmt.Printf("Could not resolve %s\n", "192.168.42.116:" + strconv.Itoa(serverPort))
 		return
 	}
 
