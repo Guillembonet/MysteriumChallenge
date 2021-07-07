@@ -6,17 +6,17 @@ import (
 )
 
 // Server --
-func Server(localPort int) {
+func Server(serverPort int) {
 	msgBuf := make([]byte, 1024)
 
 	// Initiatlize a UDP listener
-	ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: localPort})
+	ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
 	if err != nil {
-		fmt.Printf("Unable to listen on :%d\n", localPort)
+		fmt.Printf("Unable to listen on :%d\n", serverPort)
 		return
 	}
 
-	fmt.Printf("Listening on :%d\n", localPort)
+	fmt.Printf("Listening on :%d\n", serverPort)
 
 	for {
 		fmt.Println("---")

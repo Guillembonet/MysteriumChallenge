@@ -5,12 +5,13 @@ import (
 )
 
 func main() {
-  localPort := 9595
+  serverPort := 12001
+  clientPort := 12002
 	cmd := os.Args[1]
 	switch cmd {
 	case "c":
-		Client(localPort)
+		Client(serverPort, clientPort)
 	case "s":
-		Server(localPort)
+		Server(serverPort)
 	}
 }
