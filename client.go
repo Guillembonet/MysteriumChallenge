@@ -46,6 +46,7 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int
 		return "", err
 	}
 
+	//3. find server
 	// Initiate the transaction, creating the hole
 	msg := "CLIENT test"
 	fmt.Fprintf(conn, msg)
@@ -73,6 +74,16 @@ func Client(clientPort int, relayPort int) {
 	if err != nil {
 		fmt.Println("Error getting server")
 	}
+
+	//await server ack
+	rcvLen, addr, err := conn.ReadFrom(msgBuf)
+	if err != nil {
+		fmt.Println("Transaction was initiated but encountered an error!")
+	}
+
+	fmt.Printf("Received a packet from: %s\n\tResult: %s\n",
+		addr.String(), msgBuf[:rcvLen])
+
 	conn.Close()
 
 	//Get own address
@@ -118,5 +129,7 @@ func Client(clientPort int, relayPort int) {
 			originAddr.IP, originAddr.Port, msgBuf[:msgLen])
 
 		fmt.Println("Success: NAT traversed! ^-^")
+
+		fmt.Fprintf(ln, "hi")
 	}
 }

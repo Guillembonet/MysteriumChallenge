@@ -47,6 +47,7 @@ func Relay(relayPort int) {
       if val, ok := servers[string(msgBuf[7:msgLen])]; ok {
           reply = val.ip + ":" + strconv.Itoa(val.port)
 
+          //4. Send client
           //tell server to punch hole to client
           serverAddr, err := net.ResolveUDPAddr("udp4", val.ip + ":" + strconv.Itoa(val.port))
     			if err != nil {
@@ -56,6 +57,8 @@ func Relay(relayPort int) {
           sendtoServer := "CLIENT " + originAddr.IP.String() + ":" + strconv.Itoa(originAddr.Port)
           copy(msgBuf, []byte(sendtoServer))
           _, err = conn.WriteTo(msgBuf[:len(sendtoServer)], serverAddr)
+          fmt.Printf("Sent client to Server %s\n\t%s\n",
+      			serverAddr.String(), msgBuf[:len(sendtoServer)])
       } else {
         reply = "none"
       }
@@ -79,10 +82,32 @@ func Relay(relayPort int) {
       servers[string(msgBuf[7:msgLen])] = server{ip: originAddr.IP.String(), port: originAddr.Port}
       reply = string(msgBuf[7:msgLen]) + " = " + originAddr.IP.String() + ":" + strconv.Itoa(originAddr.Port)
 
-
+      //2. Ack
       //reply using hole
       copy(msgBuf, []byte(reply))
   		_, err = conn.WriteTo(msgBuf[:len(reply)], originAddr)
+
+  		if err != nil {
+  			fmt.Println("Socket closed unexpectedly!")
+  			continue
+  		}
+
+  		fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+  			originAddr.String(), msgBuf[:len(reply)])
+    } else if (strings.HasPrefix(string(msgBuf[:msgLen]), "PUNCHED ") && msgLen > 7) {
+      fmt.Printf("Received a UDP packet back from %s:%d\n\tResponse: %s\n",
+    		originAddr.IP, originAddr.Port, msgBuf[:msgLen])
+
+      clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:msgLen]))
+			if err != nil {
+				fmt.Printf("Could not resolve %s\n", string(msgBuf[7:msgLen]))
+				return
+			}
+
+      reply = "PUNCHED test"
+      //ack client using hole
+      copy(msgBuf, []byte(reply))
+  		_, err = conn.WriteTo(msgBuf[:len(reply)], clientAddr)
 
   		if err != nil {
   			fmt.Println("Socket closed unexpectedly!")

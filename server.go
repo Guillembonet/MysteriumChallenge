@@ -57,6 +57,7 @@ func Server(serverPort int, relayPort int) {
 
 	relay := os.Args[2]
 
+	//1. Register
 	registerServer(msgBuf, &conn, relay, relayPort, serverPort)
 	conn.Close()
 
@@ -88,10 +89,15 @@ func Server(serverPort int, relayPort int) {
 				return
 			}
 
-			//punch hole
-			reply := "punch!"
+			//5. Punch hole
+			reply := "PUNCHED " + string(msgBuf[7:rcvLen])
 			copy(msgBuf, []byte(reply))
 			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
+			//ack to relay
+			copy(msgBuf, []byte(reply))
+			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
+			fmt.Printf("Sent punch to client %s\n",
+				clientAddr.String())
 
 		} else {
 			// Let the client confirm a hole was punched through to us
