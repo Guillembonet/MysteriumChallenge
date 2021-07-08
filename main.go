@@ -6,7 +6,7 @@ import (
 
 func main() {
   serverPort := 12001
-  clientPort := 12002
+  clientPort := 11011
 	cmd := os.Args[1]
 	switch cmd {
 	case "c":

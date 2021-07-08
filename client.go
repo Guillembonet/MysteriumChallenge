@@ -7,9 +7,22 @@ import (
   "strconv"
 )
 
+func GetOutboundIP() net.IP {
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        fmt.Printf("Error when getting local IP")
+    }
+    defer conn.Close()
+
+    localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+    return localAddr.IP
+}
+
 // Client --
 func Client(serverPort int, clientPort int) {
   remote := os.Args[2]
+	ownIP := GetOutboundIP().String()
   msgBuf := make([]byte, 1024)
 
   // Resolve the passed address as UDP4
@@ -19,9 +32,9 @@ func Client(serverPort int, clientPort int) {
 		return
 	}
 
-  fromAddr, err := net.ResolveUDPAddr("udp4", "192.168.42.116:" + strconv.Itoa(serverPort))
+  fromAddr, err := net.ResolveUDPAddr("udp4", ownIP + ":" + strconv.Itoa(clientPort))
 	if err != nil {
-		fmt.Printf("Could not resolve %s\n", "192.168.42.116:" + strconv.Itoa(serverPort))
+		fmt.Printf("Could not resolve %s\n", ownIP + ":" + strconv.Itoa(clientPort))
 		return
 	}
 
@@ -29,7 +42,6 @@ func Client(serverPort int, clientPort int) {
 
 	// Initiate the transaction (force IPv4 to demo firewall punch)
 	conn, err := net.DialUDP("udp4", fromAddr, toAddr)
-  fmt.Printf("%s\n", conn.LocalAddr())
 	defer conn.Close()
 
 	if err != nil {
