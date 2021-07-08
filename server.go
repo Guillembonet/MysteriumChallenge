@@ -9,7 +9,7 @@ import (
 
 // Server --
 func Server(serverPort int, clientPort int) {
-	//msgBuf := make([]byte, 1024)
+	msgBuf := make([]byte, 1024)
 
 	remote := os.Args[2]
 	ownIP := GetOutboundIP().String()
@@ -42,40 +42,40 @@ func Server(serverPort int, clientPort int) {
 	msg := "punch!"
 	fmt.Fprintf(conn, msg)
 	fmt.Printf("Sent a UDP packet to %s:%d from %s\n\tSent: %s\n", remote, clientPort, fromAddr, msg)
-	defer conn.Close()
+	conn.Close()
 
-	// // Initiatlize a UDP listener
-	// ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
-	// if err != nil {
-	// 	fmt.Printf("Unable to listen on :%d\n", serverPort)
-	// 	return
-	// }
+	// Initiatlize a UDP listener
+	ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
+	if err != nil {
+		fmt.Printf("Unable to listen on :%d\n", serverPort)
+		return
+	}
 
-	// fmt.Printf("Listening on :%d\n", serverPort)
+	fmt.Printf("Listening on :%d\n", serverPort)
 
-	// for {
-	// 	fmt.Println("---")
-	// 	// Await incoming packets
-	// 	rcvLen, addr, err := conn.ReadFrom(msgBuf)
-	// 	if err != nil {
-	// 		fmt.Println("Transaction was initiated but encountered an error!")
-	// 		continue
-	// 	}
-	//
-	// 	fmt.Printf("Received a packet from: %s\n\tSays: %s\n",
-	// 		addr.String(), msgBuf[:rcvLen])
-	//
-	// 	// Let the client confirm a hole was punched through to us
-	// 	reply := "hole punched!"
-	// 	copy(msgBuf, []byte(reply))
-	// 	_, err = conn.WriteTo(msgBuf[:len(reply)], addr)
-	//
-	// 	if err != nil {
-	// 		fmt.Println("Socket closed unexpectedly!")
-	// 		continue
-	// 	}
-	//
-	// 	fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-	// 		addr.String(), msgBuf[:len(reply)])
-	// }
+	for {
+		fmt.Println("---")
+		// Await incoming packets
+		rcvLen, addr, err := ln.ReadFrom(msgBuf)
+		if err != nil {
+			fmt.Println("Transaction was initiated but encountered an error!")
+			continue
+		}
+
+		fmt.Printf("Received a packet from: %s\n\tSays: %s\n",
+			addr.String(), msgBuf[:rcvLen])
+
+		// Let the client confirm a hole was punched through to us
+		reply := "hole punched!"
+		copy(msgBuf, []byte(reply))
+		_, err = conn.WriteTo(msgBuf[:len(reply)], addr)
+
+		if err != nil {
+			fmt.Println("Socket closed unexpectedly!")
+			continue
+		}
+
+		fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+			addr.String(), msgBuf[:len(reply)])
+	}
 }
