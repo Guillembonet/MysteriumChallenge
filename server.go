@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"net"
 	"os"
-  "strconv"
+	"strconv"
 	"strings"
 )
 
 func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int, serverPort int) {
 	ownIP := GetOutboundIP().String()
 
-  // Resolve the passed (relay) address as UDP4
-	toAddr, err := net.ResolveUDPAddr("udp4", relay + ":" + strconv.Itoa(relayPort))
+	// Resolve the passed (relay) address as UDP4
+	toAddr, err := net.ResolveUDPAddr("udp4", relay+":"+strconv.Itoa(relayPort))
 	if err != nil {
 		fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
 		return
 	}
 
 	// Resolve the server address as UDP4
-  fromAddr, err := net.ResolveUDPAddr("udp4", ownIP + ":" + strconv.Itoa(serverPort))
+	fromAddr, err := net.ResolveUDPAddr("udp4", ownIP+":"+strconv.Itoa(serverPort))
 	if err != nil {
-		fmt.Printf("Could not resolve %s\n", ownIP + ":" + strconv.Itoa(serverPort))
+		fmt.Printf("Could not resolve %s\n", ownIP+":"+strconv.Itoa(serverPort))
 		return
 	}
 
@@ -82,7 +82,7 @@ func Server(serverPort int, relayPort int) {
 			addr.String(), msgBuf[:rcvLen])
 
 		// NEW CLIENT EVENT
-		if (strings.HasPrefix(string(msgBuf[:rcvLen]), "CLIENT ")) {
+		if strings.HasPrefix(string(msgBuf[:rcvLen]), "CLIENT ") {
 			// Resolve client
 			clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:rcvLen]))
 			if err != nil {
@@ -91,7 +91,7 @@ func Server(serverPort int, relayPort int) {
 			}
 
 			// Resolve relay
-			relayAddr, err := net.ResolveUDPAddr("udp4", relay + ":" + strconv.Itoa(relayPort))
+			relayAddr, err := net.ResolveUDPAddr("udp4", relay+":"+strconv.Itoa(relayPort))
 			if err != nil {
 				fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
 				return
@@ -115,6 +115,20 @@ func Server(serverPort int, relayPort int) {
 			}
 			fmt.Printf("Sent punch to client %s\n",
 				clientAddr.String())
+
+			//HANDLE KEEP ALIVES
+		} else if string(msgBuf[:rcvLen]) == "KEEP ALIVE" {
+			reply := "KEEP ALIVE"
+			copy(msgBuf, []byte(reply))
+			_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
+
+			if err != nil {
+				fmt.Println("Socket closed unexpectedly!")
+				continue
+			}
+
+			fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+				addr.String(), msgBuf[:len(reply)])
 
 			// HANDLE MESSAGES
 		} else {

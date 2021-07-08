@@ -146,5 +146,19 @@ func Client(clientPort int, relayPort int) {
 			connected = true
 		}
 	}
+
+	alive := true
+
 	go keepAlive(msgBuf, ln)
+	for alive {
+		msgLen, _, err := ln.ReadFromUDP(msgBuf)
+		if err != nil {
+			fmt.Printf("Error reading UDP response!\n")
+			return
+		}
+		if string(msgBuf[:msgLen]) == "KEEP ALIVE" {
+			fmt.Println("Still alive! ^-^")
+		}
+	}
+
 }
