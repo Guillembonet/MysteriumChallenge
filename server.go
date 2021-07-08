@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
   "strconv"
+	"strings"
 )
 
 func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int, serverPort int) {
@@ -79,17 +80,32 @@ func Server(serverPort int, relayPort int) {
 		fmt.Printf("Received a packet from: %s\n\tSays: %s\n",
 			addr.String(), msgBuf[:rcvLen])
 
-		// Let the client confirm a hole was punched through to us
-		reply := "hole punched!"
-		copy(msgBuf, []byte(reply))
-		_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
+		if (strings.HasPrefix(string(msgBuf[:rcvLen]), "CLIENT ")) {
+			//resolve client
+			clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:rcvLen]))
+			if err != nil {
+				fmt.Printf("Could not resolve %s\n", string(msgBuf[7:rcvLen]))
+				return
+			}
 
-		if err != nil {
-			fmt.Println("Socket closed unexpectedly!")
-			continue
+			//punch hole
+			reply := "punch!"
+			copy(msgBuf, []byte(reply))
+			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
+
+		} else {
+			// Let the client confirm a hole was punched through to us
+			reply := "hole punched!"
+			copy(msgBuf, []byte(reply))
+			_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
+
+			if err != nil {
+				fmt.Println("Socket closed unexpectedly!")
+				continue
+			}
+
+			fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+				addr.String(), msgBuf[:len(reply)])
 		}
-
-		fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-			addr.String(), msgBuf[:len(reply)])
 	}
 }

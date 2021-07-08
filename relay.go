@@ -46,6 +46,16 @@ func Relay(relayPort int) {
       //find server with this name
       if val, ok := servers[string(msgBuf[7:msgLen])]; ok {
           reply = val.ip + ":" + strconv.Itoa(val.port)
+
+          //tell server to punch hole to client
+          serverAddr, err := net.ResolveUDPAddr("udp4", val.ip + ":" + strconv.Itoa(val.port))
+    			if err != nil {
+    				fmt.Printf("Could not resolve %s:%d\n", val.ip, strconv.Itoa(val.port))
+    				return
+    			}
+          sendtoServer := "CLIENT " + originAddr.IP.String() + ":" + strconv.Itoa(originAddr.Port)
+          copy(msgBuf, []byte(sendtoServer))
+          _, err = conn.WriteTo(msgBuf[:len(sendtoServer)], serverAddr)
       } else {
         reply = "none"
       }
