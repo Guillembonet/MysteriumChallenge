@@ -11,9 +11,9 @@ func main() {
 	cmd := os.Args[1]
 	switch cmd {
 		case "c":
-			Client(serverPort, clientPort)
+			Client(clientPort, relayPort)
 		case "s":
-			Server(serverPort, clientPort)
+			Server(serverPort, relayPort)
 		case "r":
 			Relay(relayPort)
 	}
