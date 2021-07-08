@@ -57,12 +57,20 @@ func Server(serverPort int, relayPort int) {
 	relay := os.Args[2]
 
 	registerServer(msgBuf, &conn, relay, relayPort, serverPort)
-	defer conn.Close()
+	conn.Close()
+
+	ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
+	if err != nil {
+		fmt.Printf("Unable to listen on :%d\n", serverPort)
+		return
+	}
+
+	fmt.Printf("Listening on :%d\n", serverPort)
 
 	for {
 		fmt.Println("---")
 		// Await incoming packets
-		rcvLen, addr, err := conn.ReadFrom(msgBuf)
+		rcvLen, addr, err := ln.ReadFrom(msgBuf)
 		if err != nil {
 			fmt.Println("Transaction was initiated but encountered an error!")
 			continue
@@ -74,7 +82,7 @@ func Server(serverPort int, relayPort int) {
 		// Let the client confirm a hole was punched through to us
 		reply := "hole punched!"
 		copy(msgBuf, []byte(reply))
-		_, err = conn.WriteTo(msgBuf[:len(reply)], addr)
+		_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
 
 		if err != nil {
 			fmt.Println("Socket closed unexpectedly!")
