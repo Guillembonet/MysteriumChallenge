@@ -129,7 +129,5 @@ func Client(clientPort int, relayPort int) {
 			originAddr.IP, originAddr.Port, msgBuf[:msgLen])
 
 		fmt.Println("Success: NAT traversed! ^-^")
-
-		fmt.Fprintf(ln, "hi")
 	}
 }
