@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"os"
+	"strings"
 )
 
 func GetOutboundIP() net.IP {
@@ -38,7 +39,7 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int
 
 	fmt.Printf("Trying to punch a hole to %s:%d\n", relay, relayPort)
 
-	// Initiate the transaction (force IPv4 to demo firewall punch)
+	// Create connection to relay
 	tmpConn, err := net.DialUDP("udp4", fromAddr, toAddr)
 	*conn = *tmpConn
 	if err != nil {
@@ -46,13 +47,12 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int
 		return "", err
 	}
 
-	//3. find server
-	// Initiate the transaction, creating the hole
+	// Register client to server "test"
 	msg := "CLIENT test"
 	fmt.Fprintf(conn, msg)
 	fmt.Printf("Sent a UDP packet to %s:%d from %s\n\tSent: %s\n", relay, relayPort, fromAddr, msg)
 
-	//await server registation
+	// Await relay registation ack
 	rcvLen, addr, err := conn.ReadFrom(msgBuf)
 	if err != nil {
 		fmt.Println("Transaction was initiated but encountered an error!")
@@ -70,12 +70,14 @@ func Client(clientPort int, relayPort int) {
 	var conn net.UDPConn
 	relay := os.Args[2]
 
+	// Get server ip and port through relay and request hole punching
 	server, err := requestServer(msgBuf, &conn, relay, relayPort, clientPort)
+	defer conn.Close()
 	if err != nil {
 		fmt.Println("Error getting server")
 	}
 
-	//await server ack
+	// Await server hole punching
 	rcvLen, addr, err := conn.ReadFrom(msgBuf)
 	if err != nil {
 		fmt.Println("Transaction was initiated but encountered an error!")
@@ -84,9 +86,10 @@ func Client(clientPort int, relayPort int) {
 	fmt.Printf("Received a packet from: %s\n\tResult: %s\n",
 		addr.String(), msgBuf[:rcvLen])
 
+	if !strings.HasPrefix(string(msgBuf[:rcvLen]), "PUNCHED ") { return }
 	conn.Close()
 
-	//Get own address
+	// Get own address
 	ownIP := GetOutboundIP().String()
   fromAddr, err := net.ResolveUDPAddr("udp4", ownIP + ":" + strconv.Itoa(clientPort))
 	if err != nil {
@@ -103,7 +106,7 @@ func Client(clientPort int, relayPort int) {
 
 	fmt.Printf("Trying to punch a hole to %s\n", server)
 
-	//Initiate the transaction (force IPv4 to demo firewall punch)
+	// Initiate handshake
 	ln, err := net.DialUDP("udp4", fromAddr, toAddr)
 	defer ln.Close()
 
@@ -112,13 +115,14 @@ func Client(clientPort int, relayPort int) {
 		return
 	}
 
-	// Initiate the transaction, creating the hole
-	msg := "trying..."
+	// Send message creating the hole
+	msg := "Hello mr. Server"
 	fmt.Fprintf(ln, msg)
 	fmt.Printf("Sent a UDP packet to %s from %s\n\tSent: %s\n", toAddr, fromAddr, msg)
 
-	for {
-		// Await a response through our firewall hole
+	connected := false
+	for(!connected) {
+		// Await a response through our NAT hole
 		msgLen, originAddr, err := ln.ReadFromUDP(msgBuf)
 		if err != nil {
 			fmt.Printf("Error reading UDP response!\n")
@@ -127,7 +131,9 @@ func Client(clientPort int, relayPort int) {
 
 		fmt.Printf("Received a UDP packet back from %s:%d\n\tResponse: %s\n",
 			originAddr.IP, originAddr.Port, msgBuf[:msgLen])
-
-		fmt.Println("Success: NAT traversed! ^-^")
+		if (string(msgBuf[:msgLen]) == "Hello client!") {
+			fmt.Println("Success: NAT traversed! ^-^")
+			connected = true
+		}
 	}
 }

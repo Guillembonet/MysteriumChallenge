@@ -27,7 +27,7 @@ func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort in
 
 	fmt.Printf("Trying to punch a hole to %s:%d\n", relay, relayPort)
 
-	// Initiate the transaction (force IPv4 to demo firewall punch)
+	// Initiate the server registration
 	tmpConn, err := net.DialUDP("udp4", fromAddr, toAddr)
 	*conn = *tmpConn
 	if err != nil {
@@ -40,7 +40,7 @@ func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort in
 	fmt.Fprintf(conn, msg)
 	fmt.Printf("Sent a UDP packet to %s:%d from %s\n\tSent: %s\n", relay, relayPort, fromAddr, msg)
 
-	//await server registation
+	// Await server registation
 	rcvLen, addr, err := conn.ReadFrom(msgBuf)
 	if err != nil {
 		fmt.Println("Transaction was initiated but encountered an error!")
@@ -57,7 +57,7 @@ func Server(serverPort int, relayPort int) {
 
 	relay := os.Args[2]
 
-	//1. Register
+	// Register Server
 	registerServer(msgBuf, &conn, relay, relayPort, serverPort)
 	conn.Close()
 
@@ -81,33 +81,45 @@ func Server(serverPort int, relayPort int) {
 		fmt.Printf("Received a packet from: %s\n\tSays: %s\n",
 			addr.String(), msgBuf[:rcvLen])
 
+		// NEW CLIENT EVENT
 		if (strings.HasPrefix(string(msgBuf[:rcvLen]), "CLIENT ")) {
-			//resolve client
+			// Resolve client
 			clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:rcvLen]))
 			if err != nil {
 				fmt.Printf("Could not resolve %s\n", string(msgBuf[7:rcvLen]))
 				return
 			}
 
+			// Resolve relay
 			relayAddr, err := net.ResolveUDPAddr("udp4", relay + ":" + strconv.Itoa(relayPort))
 			if err != nil {
 				fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
 				return
 			}
 
-			//5. Punch hole
+			// Punch hole
 			reply := "PUNCHED " + string(msgBuf[7:rcvLen])
 			copy(msgBuf, []byte(reply))
 			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
-			//ack to relay
+			if err != nil {
+				fmt.Println("Socket closed unexpectedly!")
+				continue
+			}
+
+			// Ack to relay
 			copy(msgBuf, []byte(reply))
 			_, err = ln.WriteTo(msgBuf[:len(reply)], relayAddr)
+			if err != nil {
+				fmt.Println("Socket closed unexpectedly!")
+				continue
+			}
 			fmt.Printf("Sent punch to client %s\n",
 				clientAddr.String())
 
+			// HANDLE MESSAGES
 		} else {
 			// Let the client confirm a hole was punched through to us
-			reply := "hole punched!"
+			reply := "Hello client!"
 			copy(msgBuf, []byte(reply))
 			_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
 
