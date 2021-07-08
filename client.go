@@ -24,6 +24,10 @@ func Client(serverPort int, clientPort int) {
 
 	//Await a response through our firewall hole
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{Port: clientPort})
+	if err != nil {
+		fmt.Printf("Unable to listen on :%d\n", clientPort)
+		return
+	}
 	msgLen, originAddr, err := conn.ReadFromUDP(msgBuf)
 	if err != nil {
 		fmt.Printf("Error reading UDP response!\n")

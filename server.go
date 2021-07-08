@@ -68,7 +68,7 @@ func Server(serverPort int, clientPort int) {
 		// Let the client confirm a hole was punched through to us
 		reply := "hole punched!"
 		copy(msgBuf, []byte(reply))
-		_, err = conn.WriteTo(msgBuf[:len(reply)], addr)
+		_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
 
 		if err != nil {
 			fmt.Println("Socket closed unexpectedly!")
