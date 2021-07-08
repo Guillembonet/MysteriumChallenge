@@ -94,13 +94,13 @@ func Relay(relayPort int) {
 
   		fmt.Printf("Sent reply to %s\n\tReply: %s\n",
   			originAddr.String(), msgBuf[:len(reply)])
-    } else if (strings.HasPrefix(string(msgBuf[:msgLen]), "PUNCHED ") && msgLen > 7) {
+    } else if (strings.HasPrefix(string(msgBuf[:msgLen]), "PUNCHED ") && msgLen > 8) {
       fmt.Printf("Received a UDP packet back from %s:%d\n\tResponse: %s\n",
     		originAddr.IP, originAddr.Port, msgBuf[:msgLen])
 
-      clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:msgLen]))
+      clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[8:msgLen]))
 			if err != nil {
-				fmt.Printf("Could not resolve %s\n", string(msgBuf[7:msgLen]))
+				fmt.Printf("Could not resolve %s\n", string(msgBuf[8:msgLen]))
 				return
 			}
 

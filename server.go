@@ -89,13 +89,19 @@ func Server(serverPort int, relayPort int) {
 				return
 			}
 
+			relayAddr, err := net.ResolveUDPAddr("udp4", relay + ":" + strconv.Itoa(relayPort))
+			if err != nil {
+				fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
+				return
+			}
+
 			//5. Punch hole
 			reply := "PUNCHED " + string(msgBuf[7:rcvLen])
 			copy(msgBuf, []byte(reply))
 			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
 			//ack to relay
 			copy(msgBuf, []byte(reply))
-			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
+			_, err = ln.WriteTo(msgBuf[:len(reply)], relayAddr)
 			fmt.Printf("Sent punch to client %s\n",
 				clientAddr.String())
 
