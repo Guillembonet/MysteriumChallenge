@@ -82,7 +82,7 @@ func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Add
 		address.String(), msgBuf[:len(message)])
 }
 
-func zombieMover(msgBuf []byte, ln *net.UDPConn, game game, c chan net.Addr, position *coordinate) {
+func zombieMover(msgBuf []byte, ln *net.UDPConn, game *game, c chan net.Addr, position *coordinate) {
 
 	finished := false
 	for !finished {
@@ -121,7 +121,7 @@ func zombieMover(msgBuf []byte, ln *net.UDPConn, game game, c chan net.Addr, pos
 
 }
 
-func startGame(msgBuf []byte, ln *net.UDPConn, game game) {
+func startGame(msgBuf []byte, ln *net.UDPConn, game *game) {
 
 	ch := make(chan net.Addr)
 	position := coordinate{x: 0, y: 5}
@@ -209,7 +209,8 @@ func Server(serverPort int, relayPort int) {
 
 			// CREATE GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "CREATE ") {
-			games[string(msgBuf[7:rcvLen])] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil}
+			key := string(msgBuf[7:rcvLen])
+			games[key] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil}
 
 			sendMessage(msgBuf, ln, "CREATED "+string(msgBuf[7:rcvLen]), addr)
 
@@ -217,7 +218,8 @@ func Server(serverPort int, relayPort int) {
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "JOIN ") {
 
 			reply := "Game does not exist "
-			if val, ok := games[string(msgBuf[5:rcvLen])]; ok {
+			key := string(msgBuf[5:rcvLen])
+			if val, ok := games[key]; ok {
 				if !Exists(val.clients, addr) {
 					if !val.started {
 						val.clients = append(val.clients, addr)
@@ -239,7 +241,11 @@ func Server(serverPort int, relayPort int) {
 			if val, ok := games[key]; ok {
 				if !val.started {
 					games[key] = game{started: true, clients: val.clients, channel: val.channel, winner: nil}
-					go startGame(msgBuf, ln, games[key])
+					gameElement := games[key]
+					fmt.Println(len("test"))
+					fmt.Println(key[4])
+					fmt.Println(key == "test")
+					go startGame(msgBuf, ln, &gameElement)
 				} else {
 					reply := "Game already started"
 					sendMessage(msgBuf, ln, reply, addr)
@@ -251,7 +257,7 @@ func Server(serverPort int, relayPort int) {
 
 			orderValue := string(msgBuf[:rcvLen])
 			gameName := strings.Split(orderValue, " ")[1]
-			fmt.Println(gameName)
+			fmt.Println(games["test"].clients)
 			// IF GAME IS RUNNING SEND SHOT TO CHANNEL
 			if val, ok := games[gameName]; ok {
 				if val.started && val.winner == nil {
