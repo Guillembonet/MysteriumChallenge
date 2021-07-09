@@ -2,11 +2,24 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
+
+type game struct {
+	started bool
+	clients []net.Addr
+	channel chan string
+}
+
+type coordinate struct {
+	x int
+	y int
+}
 
 func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int, serverPort int) {
 	ownIP := GetOutboundIP().String()
@@ -50,6 +63,63 @@ func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort in
 		addr.String(), msgBuf[:rcvLen])
 }
 
+func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr) {
+
+	copy(msgBuf, []byte(message))
+	_, err := ln.WriteTo(msgBuf[:len(message)], address)
+
+	if err != nil {
+		fmt.Println("Socket closed unexpectedly!")
+	}
+
+	fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+		address.String(), msgBuf[:len(message)])
+}
+
+func zombieMover(msgBuf []byte, ln *net.UDPConn, game game, c chan net.Addr, position *coordinate) {
+
+	finished := false
+	for !finished {
+		select {
+		case res := <-c:
+			sendMessage(msgBuf, ln, "YOU WON!", res)
+
+			finished = true
+		case <-time.After(2 * time.Second):
+			rnd1 := rand.Intn(4)
+			rnd2 := rand.Intn(6)
+			if rnd1 != 2 {
+				*position = coordinate{x: position.x + 1, y: position.y}
+			}
+			if rnd2 < 2 && position.y > 0 {
+				*position = coordinate{x: position.x, y: position.y - 1}
+			} else if rnd2 >= 4 && position.y < 10 {
+				*position = coordinate{x: position.x, y: position.y + 1}
+			}
+			for _, element := range game.clients {
+				sendMessage(msgBuf, ln, "WALK night-king "+strconv.Itoa(position.x)+" "+strconv.Itoa(position.y), element)
+			}
+			if position.x >= 30 {
+				game.channel <- "END"
+			}
+		}
+	}
+
+}
+
+func startGame(msgBuf []byte, ln *net.UDPConn, game game) {
+
+	ch := make(chan net.Addr)
+	position := coordinate{x: 0, y: 5}
+	go zombieMover(msgBuf, ln, game, ch, &position)
+
+	for {
+		select {
+		case order := <-game.channel:
+			if ()
+	}
+}
+
 // Server --
 func Server(serverPort int, relayPort int) {
 	msgBuf := make([]byte, 1024)
@@ -68,6 +138,9 @@ func Server(serverPort int, relayPort int) {
 	}
 
 	fmt.Printf("Listening on :%d\n", serverPort)
+
+	// map of games by name
+	games := make(map[string]game)
 
 	for {
 		fmt.Println("---")
@@ -97,38 +170,58 @@ func Server(serverPort int, relayPort int) {
 				return
 			}
 
-			// Punch hole
 			reply := "PUNCHED " + string(msgBuf[7:rcvLen])
-			copy(msgBuf, []byte(reply))
-			_, err = ln.WriteTo(msgBuf[:len(reply)], clientAddr)
-			if err != nil {
-				fmt.Println("Socket closed unexpectedly!")
-				continue
-			}
+			// Punch hole
+			sendMessage(msgBuf, ln, reply, clientAddr)
 
 			// Ack to relay
-			copy(msgBuf, []byte(reply))
-			_, err = ln.WriteTo(msgBuf[:len(reply)], relayAddr)
-			if err != nil {
-				fmt.Println("Socket closed unexpectedly!")
-				continue
-			}
+			sendMessage(msgBuf, ln, reply, relayAddr)
+
 			fmt.Printf("Sent punch to client %s\n",
 				clientAddr.String())
 
 			//HANDLE KEEP ALIVES
 		} else if string(msgBuf[:rcvLen]) == "KEEP ALIVE" {
-			reply := "KEEP ALIVE"
-			copy(msgBuf, []byte(reply))
-			_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
+			sendMessage(msgBuf, ln, "KEEP ALIVE", addr)
 
-			if err != nil {
-				fmt.Println("Socket closed unexpectedly!")
-				continue
+			// CREATE GAME
+		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "CREATE ") {
+			games[string(msgBuf[7:rcvLen])] = game{started: false, clients: []net.Addr{addr}, channel: make(chan string)}
+
+			sendMessage(msgBuf, ln, "CREATED "+string(msgBuf[7:rcvLen]), addr)
+
+			// JOIN GAME
+		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "JOIN ") {
+
+			reply := "Game does not exist "
+			if val, ok := games[string(msgBuf[5:rcvLen])]; ok {
+				if !Exists(val.clients, addr) {
+					if !val.started {
+						val.clients = append(val.clients, addr)
+						reply = "JOINED"
+					} else {
+						reply = "Game already started"
+					}
+				} else {
+					reply = "Already joined"
+				}
+
 			}
+			sendMessage(msgBuf, ln, reply, addr)
 
-			fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-				addr.String(), msgBuf[:len(reply)])
+			// START GAME
+		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "START ") {
+
+			key := string(msgBuf[6:rcvLen])
+			if val, ok := games[key]; ok {
+				if !val.started {
+					games[key] = game{started: true, clients: val.clients, channel: val.channel}
+					go startGame(msgBuf, ln, game)
+				} else {
+					reply := "Game already started"
+					sendMessage(msgBuf, ln, reply, addr)
+				}
+			}
 
 			// HANDLE MESSAGES
 		} else {
