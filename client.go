@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -8,6 +9,11 @@ import (
 	"strings"
 	"time"
 )
+
+type message struct {
+	content string
+	addr    *net.UDPAddr
+}
 
 func GetOutboundIP() net.IP {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -65,10 +71,41 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int
 	return string(msgBuf[:rcvLen]), nil
 }
 
-func keepAlive(msgBuf []byte, ln *net.UDPConn) {
+func keepAlive(msgBuf []byte, ln *net.UDPConn, c chan bool) {
 	for {
-		time.Sleep(20 * time.Second)
-		fmt.Fprintf(ln, "KEEP ALIVE")
+		select {
+		case res := <-c:
+			if res {
+				//fmt.Println("DELAYING KEEP ALIVE")
+			}
+		case <-time.After(20 * time.Second):
+			//fmt.Println("SENDING KEEP ALIVE")
+			fmt.Fprintf(ln, "KEEP ALIVE")
+		}
+	}
+}
+
+func processMessages(msgBuf []byte, ln *net.UDPConn, c chan message) {
+	for {
+		msgLen, originAddr, err := ln.ReadFromUDP(msgBuf)
+		if err != nil {
+			fmt.Printf("Error reading UDP response!\n")
+			return
+		}
+
+		c <- message{content: string(msgBuf[:msgLen]), addr: originAddr}
+	}
+}
+
+func userInputHandler(msgBuf []byte, ln *net.UDPConn) {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		text, _ := reader.ReadString('\n')
+		// convert CRLF to LF
+		text = strings.Replace(text, "\n", "", -1)
+
+		fmt.Fprintf(ln, text)
 	}
 }
 
@@ -148,16 +185,25 @@ func Client(clientPort int, relayPort int) {
 	}
 
 	alive := true
+	c1 := make(chan bool)
+	c2 := make(chan message)
 
-	go keepAlive(msgBuf, ln)
+	//spawn process for keep alive sending and for message processing
+	go keepAlive(msgBuf, ln, c1)
+	go processMessages(msgBuf, ln, c2)
+	go userInputHandler(msgBuf, ln)
+
 	for alive {
-		msgLen, _, err := ln.ReadFromUDP(msgBuf)
-		if err != nil {
-			fmt.Printf("Error reading UDP response!\n")
-			return
-		}
-		if string(msgBuf[:msgLen]) == "KEEP ALIVE" {
-			fmt.Println("Still alive! ^-^")
+		select {
+		case msg := <-c2:
+			c1 <- true
+			if msg.content == "KEEP ALIVE" {
+				//fmt.Println("Still alive! ^-^")
+			}
+		//if no message in 25 seconds connection is lost
+		case <-time.After(25 * time.Second):
+			fmt.Println("LOST CONNECTION")
+			alive = false
 		}
 	}
 
