@@ -20,6 +20,7 @@ type game struct {
 	clients []net.Addr
 	channel chan order
 	winner  net.Addr
+	ended bool
 }
 
 type coordinate struct {
@@ -82,7 +83,7 @@ func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Add
 		address.String(), msgBuf[:len(message)])
 }
 
-func zombieMover(msgBuf []byte, ln *net.UDPConn, game *game, c chan net.Addr, position *coordinate) {
+func zombieMover(msgBuf []byte, ln *net.UDPConn, gameElement *game, c chan net.Addr, position *coordinate) {
 
 	finished := false
 	for !finished {
@@ -90,12 +91,14 @@ func zombieMover(msgBuf []byte, ln *net.UDPConn, game *game, c chan net.Addr, po
 		// SOMEONE WON
 		case res := <-c:
 			sendMessage(msgBuf, ln, "BOOM "+res.String()+" 1 night-king", res)
-			for _, element := range game.clients {
-				if res.String() != element.String() {
+			finished = true
+			for _, element := range gameElement.clients {
+				if gameElement.winner.String() == element.String() {
+					sendMessage(msgBuf, ln, "YOU WIN", element)
+				} else {
 					sendMessage(msgBuf, ln, "YOU LOST", element)
 				}
 			}
-			finished = true
 		case <-time.After(2 * time.Second):
 			// MOVE LOGIC
 			rnd1 := rand.Intn(4)
@@ -109,35 +112,45 @@ func zombieMover(msgBuf []byte, ln *net.UDPConn, game *game, c chan net.Addr, po
 				*position = coordinate{x: position.x, y: position.y + 1}
 			}
 			// BROADCAST MOVE
-			for _, element := range game.clients {
+			for _, element := range gameElement.clients {
 				sendMessage(msgBuf, ln, "WALK night-king "+strconv.Itoa(position.x)+" "+strconv.Itoa(position.y), element)
 			}
 			// IF ZOMBIE REACHED THE WALL
 			if position.x >= 30 {
-				game.channel <- order{client: nil, value: "END"}
+				finished = true
+				gameElement.channel <- order{client: nil, value: "END"}
 			}
 		}
 	}
 
 }
 
-func startGame(msgBuf []byte, ln *net.UDPConn, game *game) {
+func startGame(msgBuf []byte, ln *net.UDPConn, gameElement *game) {
 
 	ch := make(chan net.Addr)
 	position := coordinate{x: 0, y: 5}
-	go zombieMover(msgBuf, ln, game, ch, &position)
+	go zombieMover(msgBuf, ln, gameElement, ch, &position)
 
 	for {
-		order := <-game.channel
+		order := <-gameElement.channel
 		if strings.HasPrefix(order.value, "SHOOT ") {
+			// CHECK SHOT
 			shotString := strings.Split(order.value, " ")
 			x, _ := strconv.Atoi(shotString[2])
 			y, _ := strconv.Atoi(shotString[3])
 			fmt.Printf("SHOOT at %d,%d and zombie at %d,%d\n", x, y, position.x, position.y)
 			if x == position.x && y == position.y {
+				// CLIENT WON
+				*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: order.client, ended: true}
 				ch <- order.client
 			} else {
 				sendMessage(msgBuf, ln, "BOOM "+order.client.String()+" 0", order.client)
+			}
+		} else if order.value == "END" {
+			*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: nil, ended: true}
+			fmt.Println("Zombie won")
+			for _, element := range gameElement.clients {
+				sendMessage(msgBuf, ln, "YOU LOST", element)
 			}
 		}
 	}
@@ -210,7 +223,7 @@ func Server(serverPort int, relayPort int) {
 			// CREATE GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "CREATE ") {
 			key := string(msgBuf[7:rcvLen])
-			games[key] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil}
+			games[key] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil, ended: false}
 
 			sendMessage(msgBuf, ln, "CREATED "+string(msgBuf[7:rcvLen]), addr)
 
@@ -240,11 +253,8 @@ func Server(serverPort int, relayPort int) {
 			key := string(msgBuf[6:rcvLen])
 			if val, ok := games[key]; ok {
 				if !val.started {
-					games[key] = game{started: true, clients: val.clients, channel: val.channel, winner: nil}
+					games[key] = game{started: true, clients: val.clients, channel: val.channel, winner: nil, ended: false}
 					gameElement := games[key]
-					fmt.Println(len("test"))
-					fmt.Println(key[4])
-					fmt.Println(key == "test")
 					go startGame(msgBuf, ln, &gameElement)
 				} else {
 					reply := "Game already started"
@@ -257,13 +267,12 @@ func Server(serverPort int, relayPort int) {
 
 			orderValue := string(msgBuf[:rcvLen])
 			gameName := strings.Split(orderValue, " ")[1]
-			fmt.Println(games["test"].clients)
 			// IF GAME IS RUNNING SEND SHOT TO CHANNEL
 			if val, ok := games[gameName]; ok {
-				if val.started && val.winner == nil {
+				if val.started && !val.ended && Exists(games[gameName].clients, addr) {
 					games[gameName].channel <- order{value: orderValue, client: addr}
 				} else {
-					reply := "Game ended or not started"
+					reply := "Game ended, not started or did not join"
 					sendMessage(msgBuf, ln, reply, addr)
 				}
 			} else {
