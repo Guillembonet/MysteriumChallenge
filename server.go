@@ -133,6 +133,7 @@ func startGame(msgBuf []byte, ln *net.UDPConn, game game) {
 			shotString := strings.Split(order.value, " ")
 			x, _ := strconv.Atoi(shotString[2])
 			y, _ := strconv.Atoi(shotString[3])
+			fmt.Printf("SHOOT at %d,%d and zombie at %d,%d\n", x, y, position.x, position.y)
 			if x == position.x && y == position.y {
 				ch <- order.client
 			} else {

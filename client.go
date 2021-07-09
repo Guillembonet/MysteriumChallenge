@@ -200,7 +200,7 @@ func Client(clientPort int, relayPort int) {
 			if msg.content == "KEEP ALIVE" {
 				//fmt.Println("Still alive! ^-^")
 			} else {
-				fmt.Println(msg.content)
+				fmt.Println("\r" + msg.content + "\r")
 			}
 		//if no message in 25 seconds connection is lost
 		case <-time.After(25 * time.Second):
