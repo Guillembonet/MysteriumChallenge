@@ -199,7 +199,7 @@ func Client(clientPort int, relayPort int) {
 			c1 <- true
 			if msg.content == "KEEP ALIVE" {
 				//fmt.Println("Still alive! ^-^")
-			} else {
+			} else if !strings.HasPrefix(msg.content, "WALK ") {
 				fmt.Println("\r" + msg.content + "\r")
 			}
 		//if no message in 25 seconds connection is lost
