@@ -251,6 +251,7 @@ func Server(serverPort int, relayPort int) {
 
 			orderValue := string(msgBuf[:rcvLen])
 			gameName := strings.Split(orderValue, " ")[1]
+			fmt.Println(gameName)
 			// IF GAME IS RUNNING SEND SHOT TO CHANNEL
 			if val, ok := games[gameName]; ok {
 				if val.started && val.winner == nil {
@@ -259,6 +260,9 @@ func Server(serverPort int, relayPort int) {
 					reply := "Game ended or not started"
 					sendMessage(msgBuf, ln, reply, addr)
 				}
+			} else {
+				reply := "Game does not exist"
+				sendMessage(msgBuf, ln, reply, addr)
 			}
 
 			// HANDLE MESSAGES
