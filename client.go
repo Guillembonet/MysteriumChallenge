@@ -54,11 +54,11 @@ func processMessages(msgBuf []byte, conn *net.UDPConn, c chan message) {
 	}
 }
 
-func userInputHandler(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr, reader *bufio.Reader) {
-	*reader = *(bufio.NewReader(os.Stdin))
+func userInputHandler(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr) {
+	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		text, _ := (*reader).ReadString('\n')
+		text, _ := reader.ReadString('\n')
 		// convert CRLF to LF
 		text = strings.Replace(text, "\n", "", -1)
 		text = strings.Replace(text, "\r", "", -1)
@@ -144,8 +144,10 @@ func Client(clientPort int, relayPort int) {
 	go keepAlive(msgBuf, conn, serverAddr)
 	go processMessages(msgBuf, conn, c2)
 
-	var reader bufio.Reader
-	go userInputHandler(msgBuf, conn, serverAddr, &reader)
+	go userInputHandler(msgBuf, conn, serverAddr)
+
+	f, err := os.Create("moves.txt")
+	defer f.Close()
 
 	for alive {
 		select {
@@ -155,8 +157,7 @@ func Client(clientPort int, relayPort int) {
 			} else if !strings.HasPrefix(msg.content, "WALK ") {
 				fmt.Println("\r" + msg.content + "\r")
 			} else {
-				buffer, _ := (*&reader).Peek((*&reader).Buffered())
-				fmt.Printf("\r%s\n%s", msg.content, string(buffer))
+				f.WriteString(msg.content + "\n")
 			}
 		//if no message in 25 seconds connection is lost
 		case <-time.After(25 * time.Second):
