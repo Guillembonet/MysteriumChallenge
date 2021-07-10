@@ -17,7 +17,7 @@ func HandleClientRegistration(msgBuf []byte, conn *net.UDPConn, servers map[stri
 	if serverAddr, ok := servers[serverName]; ok {
 		reply = serverAddr.String()
 
-		sendMessage(msgBuf, conn, "CLIENT "+serverAddr.String(), serverAddr)
+		sendMessage(msgBuf, conn, "CLIENT "+clientAddr.String(), serverAddr)
 	}
 
 	// reply the server ip and port to the client
@@ -45,7 +45,7 @@ func handleHolePunch(msgBuf []byte, conn *net.UDPConn, servers map[string]net.Ad
 	sendMessage(msgBuf, conn, "PUNCHED test", clientAddr)
 }
 
-// Relay --
+// Relay node
 func Relay(relayPort int) {
 	msgBuf := make([]byte, 1024)
 
