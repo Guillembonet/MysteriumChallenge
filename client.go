@@ -15,18 +15,6 @@ type message struct {
 	addr    *net.UDPAddr
 }
 
-func GetOutboundIP() net.IP {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		fmt.Printf("Error when getting local IP")
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP
-}
-
 func requestServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr) (string, error) {
 
 	fmt.Printf("Trying to punch a hole to %s\n", relayAddr.String())
@@ -47,23 +35,16 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr) (string
 	return string(msgBuf[:rcvLen]), nil
 }
 
-func keepAlive(msgBuf []byte, ln *net.UDPConn, c chan bool) {
+func keepAlive(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr) {
 	for {
-		select {
-		case res := <-c:
-			if res {
-				//fmt.Println("DELAYING KEEP ALIVE")
-			}
-		case <-time.After(20 * time.Second):
-			//fmt.Println("SENDING KEEP ALIVE")
-			fmt.Fprintf(ln, "KEEP ALIVE")
-		}
+		time.Sleep(20 * time.Second)
+		sendMessage(msgBuf, conn, "KEEP ALIVE", serverAddr)
 	}
 }
 
-func processMessages(msgBuf []byte, ln *net.UDPConn, c chan message) {
+func processMessages(msgBuf []byte, conn *net.UDPConn, c chan message) {
 	for {
-		msgLen, originAddr, err := ln.ReadFromUDP(msgBuf)
+		msgLen, originAddr, err := conn.ReadFromUDP(msgBuf)
 		if err != nil {
 			fmt.Printf("Error reading UDP response!\n")
 			return
@@ -86,7 +67,7 @@ func userInputHandler(msgBuf []byte, ln *net.UDPConn) {
 	}
 }
 
-// Client --
+// Client node
 func Client(clientPort int, relayPort int) {
 	msgBuf := make([]byte, 1024)
 	relay := os.Args[2]
@@ -156,23 +137,18 @@ func Client(clientPort int, relayPort int) {
 		}
 	}
 
-	//TODO: review from here
 	alive := true
-	c1 := make(chan bool)
 	c2 := make(chan message)
 
 	//spawn process for keep alive sending and for message processing
-	go keepAlive(msgBuf, conn, c1)
+	go keepAlive(msgBuf, conn, serverAddr)
 	go processMessages(msgBuf, conn, c2)
 	go userInputHandler(msgBuf, conn)
 
 	for alive {
 		select {
 		case msg := <-c2:
-			c1 <- true
-			if msg.content == "KEEP ALIVE" {
-				//fmt.Println("Still alive! ^-^")
-			} else if !strings.HasPrefix(msg.content, "WALK ") {
+			if !strings.HasPrefix(msg.content, "WALK ") {
 				fmt.Println("\r" + msg.content + "\r")
 			}
 		//if no message in 25 seconds connection is lost
