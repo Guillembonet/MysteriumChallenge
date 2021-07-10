@@ -31,7 +31,7 @@ func registerServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr, server
 	fmt.Printf("Trying to punch a hole to %s\n", relayAddr.String())
 
 	// Initiate the transaction, creating the hole
-	sendMessage(msgBuf, conn, "SERVER test", relayAddr)
+	sendMessage(msgBuf, conn, "SERVER test", relayAddr, true)
 
 	// Await server registation
 	rcvLen, _, err := conn.ReadFrom(msgBuf)
@@ -55,10 +55,10 @@ func handleNewClient(msgBuf []byte, conn *net.UDPConn, clientAddrString string, 
 
 	reply := "PUNCHED " + clientAddrString
 	// Punch hole
-	sendMessage(msgBuf, conn, reply, clientAddr)
+	sendMessage(msgBuf, conn, reply, clientAddr, true)
 
 	// Ack to relay
-	sendMessage(msgBuf, conn, reply, relayAddr)
+	sendMessage(msgBuf, conn, reply, relayAddr, true)
 
 	fmt.Printf("Sent punch to client %s\n",
 		clientAddr.String())
@@ -111,14 +111,14 @@ func Server(serverPort int, relayPort int) {
 
 			//HANDLE KEEP ALIVES
 		} else if string(msgBuf[:rcvLen]) == "KEEP ALIVE" {
-			sendMessage(msgBuf, conn, "KEEP ALIVE", addr)
+			sendMessage(msgBuf, conn, "KEEP ALIVE", addr, true)
 
 			// CREATE GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "CREATE ") {
 			key := string(msgBuf[7:rcvLen])
 			games[key] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil, ended: false}
 
-			sendMessage(msgBuf, conn, "CREATED "+string(msgBuf[7:rcvLen]), addr)
+			sendMessage(msgBuf, conn, "CREATED "+string(msgBuf[7:rcvLen]), addr, true)
 
 			// JOIN GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "JOIN ") {
@@ -137,7 +137,7 @@ func Server(serverPort int, relayPort int) {
 					reply = "Already joined"
 				}
 			}
-			sendMessage(msgBuf, conn, reply, addr)
+			sendMessage(msgBuf, conn, reply, addr, true)
 
 			// START GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "START ") {
@@ -150,7 +150,7 @@ func Server(serverPort int, relayPort int) {
 					go startGame(msgBuf, conn, &gameElement)
 				} else {
 					reply := "Game already started"
-					sendMessage(msgBuf, conn, reply, addr)
+					sendMessage(msgBuf, conn, reply, addr, true)
 				}
 			}
 
@@ -165,17 +165,17 @@ func Server(serverPort int, relayPort int) {
 					games[gameName].channel <- order{value: orderValue, client: addr}
 				} else {
 					reply := "Game ended, not started or did not join"
-					sendMessage(msgBuf, conn, reply, addr)
+					sendMessage(msgBuf, conn, reply, addr, true)
 				}
 			} else {
 				reply := "Game does not exist"
-				sendMessage(msgBuf, conn, reply, addr)
+				sendMessage(msgBuf, conn, reply, addr, true)
 			}
 
 			// HANDLE HANDSHAKE
 		} else if string(msgBuf[:rcvLen]) == "Hello mr. Server" {
 			// Let the client confirm a hole was punched through to us
-			sendMessage(msgBuf, conn, "Hello client!", addr)
+			sendMessage(msgBuf, conn, "Hello client!", addr, true)
 		}
 	}
 }

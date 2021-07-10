@@ -12,11 +12,11 @@ func HandleClientRegistration(msgBuf []byte, conn *net.UDPConn, servers map[stri
 	if serverAddr, ok := servers[serverName]; ok {
 		reply = serverAddr.String()
 
-		sendMessage(msgBuf, conn, "CLIENT "+clientAddr.String(), serverAddr)
+		sendMessage(msgBuf, conn, "CLIENT "+clientAddr.String(), serverAddr, true)
 	}
 
 	// reply the server ip and port to the client
-	sendMessage(msgBuf, conn, reply, clientAddr)
+	sendMessage(msgBuf, conn, reply, clientAddr, true)
 }
 
 func HandleServerRegistration(msgBuf []byte, conn *net.UDPConn, servers map[string]net.Addr, serverName string, serverAddr net.Addr) {
@@ -25,7 +25,7 @@ func HandleServerRegistration(msgBuf []byte, conn *net.UDPConn, servers map[stri
 	reply := serverName + " = " + serverAddr.String()
 
 	// reply ack using hole
-	sendMessage(msgBuf, conn, reply, serverAddr)
+	sendMessage(msgBuf, conn, reply, serverAddr, true)
 }
 
 func handleHolePunch(msgBuf []byte, conn *net.UDPConn, servers map[string]net.Addr, clientAddrString string, serverAddr net.Addr) {
@@ -37,7 +37,7 @@ func handleHolePunch(msgBuf []byte, conn *net.UDPConn, servers map[string]net.Ad
 	}
 
 	// notify client that hole has been punched
-	sendMessage(msgBuf, conn, "PUNCHED test", clientAddr)
+	sendMessage(msgBuf, conn, "PUNCHED test", clientAddr, true)
 }
 
 // Relay node

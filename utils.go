@@ -17,7 +17,7 @@ func Exists(slice []net.Addr, val net.Addr) bool {
 }
 
 //Send a message containing *message* to *address*
-func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr) {
+func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr, printRes bool) {
 
 	copy(msgBuf, []byte(message))
 	_, err := ln.WriteTo(msgBuf[:len(message)], address)
@@ -26,6 +26,8 @@ func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Add
 		fmt.Println("Socket closed unexpectedly!")
 	}
 
-	fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-		address.String(), msgBuf[:len(message)])
+	if printRes {
+		fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+			address.String(), msgBuf[:len(message)])
+	}
 }

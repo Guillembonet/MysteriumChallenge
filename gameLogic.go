@@ -16,13 +16,13 @@ func zombieMover(msgBuf []byte, ln *net.UDPConn, gameElement *game, c chan net.A
 		select {
 		// SOMEONE WON
 		case res := <-c:
-			sendMessage(msgBuf, ln, "BOOM "+res.String()+" 1 night-king", res)
+			sendMessage(msgBuf, ln, "BOOM "+res.String()+" 1 night-king", res, true)
 			finished = true
 			for _, element := range gameElement.clients {
 				if gameElement.winner.String() == element.String() {
-					sendMessage(msgBuf, ln, "YOU WIN", element)
+					sendMessage(msgBuf, ln, "YOU WIN", element, true)
 				} else {
-					sendMessage(msgBuf, ln, "YOU LOST", element)
+					sendMessage(msgBuf, ln, "YOU LOST", element, true)
 				}
 			}
 		case <-time.After(2 * time.Second):
@@ -39,7 +39,7 @@ func zombieMover(msgBuf []byte, ln *net.UDPConn, gameElement *game, c chan net.A
 			}
 			// BROADCAST MOVE
 			for _, element := range gameElement.clients {
-				sendMessage(msgBuf, ln, "WALK night-king "+strconv.Itoa(position.x)+" "+strconv.Itoa(position.y), element)
+				sendMessage(msgBuf, ln, "WALK night-king "+strconv.Itoa(position.x)+" "+strconv.Itoa(position.y), element, true)
 			}
 			// IF ZOMBIE REACHED THE WALL
 			if position.x >= 30 {
@@ -70,13 +70,13 @@ func startGame(msgBuf []byte, ln *net.UDPConn, gameElement *game) {
 				*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: order.client, ended: true}
 				ch <- order.client
 			} else {
-				sendMessage(msgBuf, ln, "BOOM "+order.client.String()+" 0", order.client)
+				sendMessage(msgBuf, ln, "BOOM "+order.client.String()+" 0", order.client, true)
 			}
 		} else if order.value == "END" {
 			*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: nil, ended: true}
 			fmt.Println("Zombie won")
 			for _, element := range gameElement.clients {
-				sendMessage(msgBuf, ln, "YOU LOST", element)
+				sendMessage(msgBuf, ln, "YOU LOST", element, true)
 			}
 		}
 	}

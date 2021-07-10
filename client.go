@@ -20,7 +20,7 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr) (string
 	fmt.Printf("Trying to punch a hole to %s\n", relayAddr.String())
 
 	// Register client to server "test"
-	sendMessage(msgBuf, conn, "CLIENT test", relayAddr)
+	sendMessage(msgBuf, conn, "CLIENT test", relayAddr, true)
 
 	// Await relay registation ack
 	rcvLen, addr, err := conn.ReadFrom(msgBuf)
@@ -38,7 +38,7 @@ func requestServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr) (string
 func keepAlive(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr) {
 	for {
 		time.Sleep(20 * time.Second)
-		sendMessage(msgBuf, conn, "KEEP ALIVE", serverAddr)
+		sendMessage(msgBuf, conn, "KEEP ALIVE", serverAddr, false)
 	}
 }
 
@@ -63,7 +63,7 @@ func userInputHandler(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr) {
 		text = strings.Replace(text, "\n", "", -1)
 		text = strings.Replace(text, "\r", "", -1)
 
-		sendMessage(msgBuf, conn, text, serverAddr)
+		sendMessage(msgBuf, conn, text, serverAddr, false)
 	}
 }
 
@@ -116,7 +116,7 @@ func Client(clientPort int, relayPort int) {
 	fmt.Printf("Trying to punch a hole to %s\n", server)
 
 	// Send message creating the hole and starting the handshake
-	sendMessage(msgBuf, conn, "Hello mr. Server", serverAddr)
+	sendMessage(msgBuf, conn, "Hello mr. Server", serverAddr, true)
 
 	connected := false
 	for !connected {
