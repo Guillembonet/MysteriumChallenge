@@ -155,7 +155,7 @@ func Client(clientPort int, relayPort int) {
 			} else if !strings.HasPrefix(msg.content, "WALK ") {
 				fmt.Println("\r" + msg.content + "\r")
 			} else {
-				buffer, _ := (*reader).Peek((*reader).Buffered())
+				buffer, _ := (*&reader).Peek((*&reader).Buffered())
 				fmt.Printf("\r%s\n%s", msg.content, string(buffer))
 			}
 		//if no message in 25 seconds connection is lost
