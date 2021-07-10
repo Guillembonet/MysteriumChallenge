@@ -54,7 +54,7 @@ func processMessages(msgBuf []byte, conn *net.UDPConn, c chan message) {
 	}
 }
 
-func userInputHandler(msgBuf []byte, ln *net.UDPConn) {
+func userInputHandler(msgBuf []byte, conn *net.UDPConn, serverAddr net.Addr) {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -63,7 +63,7 @@ func userInputHandler(msgBuf []byte, ln *net.UDPConn) {
 		text = strings.Replace(text, "\n", "", -1)
 		text = strings.Replace(text, "\r", "", -1)
 
-		fmt.Fprintf(ln, text)
+		sendMessage(msgBuf, conn, text, serverAddr)
 	}
 }
 
@@ -143,7 +143,7 @@ func Client(clientPort int, relayPort int) {
 	//spawn process for keep alive sending and for message processing
 	go keepAlive(msgBuf, conn, serverAddr)
 	go processMessages(msgBuf, conn, c2)
-	go userInputHandler(msgBuf, conn)
+	go userInputHandler(msgBuf, conn, serverAddr)
 
 	for alive {
 		select {
