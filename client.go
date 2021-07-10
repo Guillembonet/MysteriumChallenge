@@ -148,7 +148,9 @@ func Client(clientPort int, relayPort int) {
 	for alive {
 		select {
 		case msg := <-c2:
-			if !strings.HasPrefix(msg.content, "WALK ") {
+			if msg.content == "KEEP ALIVE" {
+				// Omit keep alives
+			} else if !strings.HasPrefix(msg.content, "WALK ") {
 				fmt.Println("\r" + msg.content + "\r")
 			}
 		//if no message in 25 seconds connection is lost
