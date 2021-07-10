@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type order struct {
@@ -28,147 +26,77 @@ type coordinate struct {
 	y int
 }
 
-func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort int, serverPort int) {
-	ownIP := GetOutboundIP().String()
+func registerServer(msgBuf []byte, conn *net.UDPConn, relayAddr net.Addr, serverPort int) {
+
+	fmt.Printf("Trying to punch a hole to %s\n", relayAddr.String())
+
+	// Initiate the transaction, creating the hole
+	sendMessage(msgBuf, conn, "SERVER test", relayAddr)
+
+	// Await server registation
+	rcvLen, _, err := conn.ReadFrom(msgBuf)
+	if err != nil {
+		fmt.Println("Transaction was initiated but encountered an error!")
+	}
+
+	if strings.HasPrefix(string(msgBuf[:rcvLen]), "test = ") {
+		fmt.Printf("Registration successful\n\tRegistered: %s\n",
+			msgBuf[:rcvLen])
+	}
+}
+
+func handleNewClient(msgBuf []byte, conn *net.UDPConn, clientAddrString string, relayAddr net.Addr) {
+	// Resolve client
+	clientAddr, err := net.ResolveUDPAddr("udp4", clientAddrString)
+	if err != nil {
+		fmt.Printf("Could not resolve %s\n", clientAddrString)
+		return
+	}
+
+	reply := "PUNCHED " + clientAddrString
+	// Punch hole
+	sendMessage(msgBuf, conn, reply, clientAddr)
+
+	// Ack to relay
+	sendMessage(msgBuf, conn, reply, relayAddr)
+
+	fmt.Printf("Sent punch to client %s\n",
+		clientAddr.String())
+}
+
+// Server node
+func Server(serverPort int, relayPort int) {
+	msgBuf := make([]byte, 1024)
+
+	// Create connection
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
+	if err != nil {
+		fmt.Printf("Unable to listen on :%d\n", serverPort)
+		return
+	}
+	defer conn.Close()
+
+	relay := os.Args[2]
 
 	// Resolve the passed (relay) address as UDP4
-	toAddr, err := net.ResolveUDPAddr("udp4", relay+":"+strconv.Itoa(relayPort))
+	relayAddr, err := net.ResolveUDPAddr("udp4", relay+":"+strconv.Itoa(relayPort))
 	if err != nil {
 		fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
 		return
 	}
 
-	// Resolve the server address as UDP4
-	fromAddr, err := net.ResolveUDPAddr("udp4", ownIP+":"+strconv.Itoa(serverPort))
-	if err != nil {
-		fmt.Printf("Could not resolve %s\n", ownIP+":"+strconv.Itoa(serverPort))
-		return
-	}
-
-	fmt.Printf("Trying to punch a hole to %s:%d\n", relay, relayPort)
-
-	// Initiate the server registration
-	tmpConn, err := net.DialUDP("udp4", fromAddr, toAddr)
-	*conn = *tmpConn
-	if err != nil {
-		fmt.Printf("Unable to connect to %s:%d\n", relay, relayPort)
-		return
-	}
-
-	// Initiate the transaction, creating the hole
-	msg := "SERVER test"
-	fmt.Fprintf(conn, msg)
-	fmt.Printf("Sent a UDP packet to %s:%d from %s\n\tSent: %s\n", relay, relayPort, fromAddr, msg)
-
-	// Await server registation
-	rcvLen, addr, err := conn.ReadFrom(msgBuf)
-	if err != nil {
-		fmt.Println("Transaction was initiated but encountered an error!")
-	}
-
-	fmt.Printf("Received a packet from: %s\n\tRegistered: %s\n",
-		addr.String(), msgBuf[:rcvLen])
-}
-
-func zombieMover(msgBuf []byte, ln *net.UDPConn, gameElement *game, c chan net.Addr, position *coordinate) {
-
-	finished := false
-	for !finished {
-		select {
-		// SOMEONE WON
-		case res := <-c:
-			sendMessage(msgBuf, ln, "BOOM "+res.String()+" 1 night-king", res)
-			finished = true
-			for _, element := range gameElement.clients {
-				if gameElement.winner.String() == element.String() {
-					sendMessage(msgBuf, ln, "YOU WIN", element)
-				} else {
-					sendMessage(msgBuf, ln, "YOU LOST", element)
-				}
-			}
-		case <-time.After(2 * time.Second):
-			// MOVE LOGIC
-			rnd1 := rand.Intn(4)
-			rnd2 := rand.Intn(6)
-			if rnd1 != 2 {
-				*position = coordinate{x: position.x + 1, y: position.y}
-			}
-			if rnd2 < 2 && position.y > 0 {
-				*position = coordinate{x: position.x, y: position.y - 1}
-			} else if rnd2 >= 4 && position.y < 10 {
-				*position = coordinate{x: position.x, y: position.y + 1}
-			}
-			// BROADCAST MOVE
-			for _, element := range gameElement.clients {
-				sendMessage(msgBuf, ln, "WALK night-king "+strconv.Itoa(position.x)+" "+strconv.Itoa(position.y), element)
-			}
-			// IF ZOMBIE REACHED THE WALL
-			if position.x >= 30 {
-				finished = true
-				gameElement.channel <- order{client: nil, value: "END"}
-			}
-		}
-	}
-
-}
-
-func startGame(msgBuf []byte, ln *net.UDPConn, gameElement *game) {
-
-	ch := make(chan net.Addr)
-	position := coordinate{x: 0, y: 5}
-	go zombieMover(msgBuf, ln, gameElement, ch, &position)
-
-	for {
-		order := <-gameElement.channel
-		if strings.HasPrefix(order.value, "SHOOT ") {
-			// CHECK SHOT
-			shotString := strings.Split(order.value, " ")
-			x, _ := strconv.Atoi(shotString[2])
-			y, _ := strconv.Atoi(shotString[3])
-			fmt.Printf("SHOOT at %d,%d and zombie at %d,%d\n", x, y, position.x, position.y)
-			if x == position.x && y == position.y {
-				// CLIENT WON
-				*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: order.client, ended: true}
-				ch <- order.client
-			} else {
-				sendMessage(msgBuf, ln, "BOOM "+order.client.String()+" 0", order.client)
-			}
-		} else if order.value == "END" {
-			*gameElement = game{started: true, clients: gameElement.clients, channel: gameElement.channel, winner: nil, ended: true}
-			fmt.Println("Zombie won")
-			for _, element := range gameElement.clients {
-				sendMessage(msgBuf, ln, "YOU LOST", element)
-			}
-		}
-	}
-}
-
-// Server --
-func Server(serverPort int, relayPort int) {
-	msgBuf := make([]byte, 1024)
-	var conn net.UDPConn
-
-	relay := os.Args[2]
-
 	// Register Server
-	registerServer(msgBuf, &conn, relay, relayPort, serverPort)
-	conn.Close()
-
-	ln, err := net.ListenUDP("udp4", &net.UDPAddr{Port: serverPort})
-	if err != nil {
-		fmt.Printf("Unable to listen on :%d\n", serverPort)
-		return
-	}
-
-	fmt.Printf("Listening on :%d\n", serverPort)
+	registerServer(msgBuf, conn, relayAddr, serverPort)
 
 	// map of games by name
 	games := make(map[string]game)
 
+	fmt.Printf("Listening on :%d\n", serverPort)
+
 	for {
 		fmt.Println("---")
 		// Await incoming packets
-		rcvLen, addr, err := ln.ReadFrom(msgBuf)
+		rcvLen, addr, err := conn.ReadFrom(msgBuf)
 		if err != nil {
 			fmt.Println("Transaction was initiated but encountered an error!")
 			continue
@@ -179,40 +107,18 @@ func Server(serverPort int, relayPort int) {
 
 		// NEW CLIENT EVENT
 		if strings.HasPrefix(string(msgBuf[:rcvLen]), "CLIENT ") {
-			// Resolve client
-			clientAddr, err := net.ResolveUDPAddr("udp4", string(msgBuf[7:rcvLen]))
-			if err != nil {
-				fmt.Printf("Could not resolve %s\n", string(msgBuf[7:rcvLen]))
-				return
-			}
-
-			// Resolve relay
-			relayAddr, err := net.ResolveUDPAddr("udp4", relay+":"+strconv.Itoa(relayPort))
-			if err != nil {
-				fmt.Printf("Could not resolve %s:%d\n", relay, relayPort)
-				return
-			}
-
-			reply := "PUNCHED " + string(msgBuf[7:rcvLen])
-			// Punch hole
-			sendMessage(msgBuf, ln, reply, clientAddr)
-
-			// Ack to relay
-			sendMessage(msgBuf, ln, reply, relayAddr)
-
-			fmt.Printf("Sent punch to client %s\n",
-				clientAddr.String())
+			handleNewClient(msgBuf, conn, string(msgBuf[7:rcvLen]), relayAddr)
 
 			//HANDLE KEEP ALIVES
 		} else if string(msgBuf[:rcvLen]) == "KEEP ALIVE" {
-			sendMessage(msgBuf, ln, "KEEP ALIVE", addr)
+			sendMessage(msgBuf, conn, "KEEP ALIVE", addr)
 
 			// CREATE GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "CREATE ") {
 			key := string(msgBuf[7:rcvLen])
 			games[key] = game{started: false, clients: []net.Addr{addr}, channel: make(chan order), winner: nil, ended: false}
 
-			sendMessage(msgBuf, ln, "CREATED "+string(msgBuf[7:rcvLen]), addr)
+			sendMessage(msgBuf, conn, "CREATED "+string(msgBuf[7:rcvLen]), addr)
 
 			// JOIN GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "JOIN ") {
@@ -230,9 +136,8 @@ func Server(serverPort int, relayPort int) {
 				} else {
 					reply = "Already joined"
 				}
-
 			}
-			sendMessage(msgBuf, ln, reply, addr)
+			sendMessage(msgBuf, conn, reply, addr)
 
 			// START GAME
 		} else if strings.HasPrefix(string(msgBuf[:rcvLen]), "START ") {
@@ -242,10 +147,10 @@ func Server(serverPort int, relayPort int) {
 				if !val.started {
 					games[key] = game{started: true, clients: val.clients, channel: val.channel, winner: nil, ended: false}
 					gameElement := games[key]
-					go startGame(msgBuf, ln, &gameElement)
+					go startGame(msgBuf, conn, &gameElement)
 				} else {
 					reply := "Game already started"
-					sendMessage(msgBuf, ln, reply, addr)
+					sendMessage(msgBuf, conn, reply, addr)
 				}
 			}
 
@@ -254,33 +159,23 @@ func Server(serverPort int, relayPort int) {
 
 			orderValue := string(msgBuf[:rcvLen])
 			gameName := strings.Split(orderValue, " ")[1]
-			// IF GAME IS RUNNING SEND SHOT TO CHANNEL
+			// If game is running and client is a member send the order to the game channel
 			if val, ok := games[gameName]; ok {
 				if val.started && !val.ended && Exists(games[gameName].clients, addr) {
 					games[gameName].channel <- order{value: orderValue, client: addr}
 				} else {
 					reply := "Game ended, not started or did not join"
-					sendMessage(msgBuf, ln, reply, addr)
+					sendMessage(msgBuf, conn, reply, addr)
 				}
 			} else {
 				reply := "Game does not exist"
-				sendMessage(msgBuf, ln, reply, addr)
+				sendMessage(msgBuf, conn, reply, addr)
 			}
 
-			// HANDLE MESSAGES
-		} else {
+			// HANDLE HANDSHAKE
+		} else if string(msgBuf[:rcvLen]) == "Hello mr. Server" {
 			// Let the client confirm a hole was punched through to us
-			reply := "Hello client!"
-			copy(msgBuf, []byte(reply))
-			_, err = ln.WriteTo(msgBuf[:len(reply)], addr)
-
-			if err != nil {
-				fmt.Println("Socket closed unexpectedly!")
-				continue
-			}
-
-			fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-				addr.String(), msgBuf[:len(reply)])
+			sendMessage(msgBuf, conn, "Hello client!", addr)
 		}
 	}
 }

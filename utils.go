@@ -16,6 +16,7 @@ func Exists(slice []net.Addr, val net.Addr) bool {
 	return false
 }
 
+//Send a message containing *message* to *address*
 func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr) {
 
 	copy(msgBuf, []byte(message))

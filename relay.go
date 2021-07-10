@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-type server struct {
-	addr net.Addr
-	port int
-}
-
 func HandleClientRegistration(msgBuf []byte, conn *net.UDPConn, servers map[string]net.Addr, serverName string, clientAddr net.Addr) {
 	// find server with this name in dictionary
 	reply := "none"
