@@ -20,7 +20,7 @@ type game struct {
 	clients []net.Addr
 	channel chan order
 	winner  net.Addr
-	ended bool
+	ended   bool
 }
 
 type coordinate struct {
@@ -68,19 +68,6 @@ func registerServer(msgBuf []byte, conn *net.UDPConn, relay string, relayPort in
 
 	fmt.Printf("Received a packet from: %s\n\tRegistered: %s\n",
 		addr.String(), msgBuf[:rcvLen])
-}
-
-func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr) {
-
-	copy(msgBuf, []byte(message))
-	_, err := ln.WriteTo(msgBuf[:len(message)], address)
-
-	if err != nil {
-		fmt.Println("Socket closed unexpectedly!")
-	}
-
-	fmt.Printf("Sent reply to %s\n\tReply: %s\n",
-		address.String(), msgBuf[:len(message)])
 }
 
 func zombieMover(msgBuf []byte, ln *net.UDPConn, gameElement *game, c chan net.Addr, position *coordinate) {

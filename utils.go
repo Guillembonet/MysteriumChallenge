@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -13,4 +14,17 @@ func Exists(slice []net.Addr, val net.Addr) bool {
 		}
 	}
 	return false
+}
+
+func sendMessage(msgBuf []byte, ln *net.UDPConn, message string, address net.Addr) {
+
+	copy(msgBuf, []byte(message))
+	_, err := ln.WriteTo(msgBuf[:len(message)], address)
+
+	if err != nil {
+		fmt.Println("Socket closed unexpectedly!")
+	}
+
+	fmt.Printf("Sent reply to %s\n\tReply: %s\n",
+		address.String(), msgBuf[:len(message)])
 }
