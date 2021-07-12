@@ -128,7 +128,7 @@ func Server(serverPort int, relayPort int) {
 			if val, ok := games[key]; ok {
 				if !Exists(val.clients, addr) {
 					if !val.started {
-						val.clients = append(val.clients, addr)
+						games[key] = game{started: val.started, clients: append(val.clients, addr), channel: val.channel, winner: val.winner, ended: val.ended}
 						reply = "JOINED"
 					} else {
 						reply = "Game already started"
