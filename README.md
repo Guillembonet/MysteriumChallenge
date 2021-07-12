@@ -26,9 +26,11 @@ The game server is a simple loop waiting for messages, here is a list of all the
 - **START \<game_name>:** the starts the game called \<game_name> if it hasn't started yet. This will create a new thread which runs the game, this way we can run games in parallel.
 - **SHOOT \<game_name> \<x> \<y>:** if the game \<game_name> is running a shot is made to position (x,y), when the game receives the shot it replies with BOOM \<client_ip> [0|1] [{zombie}], so if the result is 1, which means that the zombie has been hit, it will end the game and will notify the clients if they won or lost.
 
+The game server is theoretically able to run multiple games simultaneously and have multiple clients playing different games at the same time.
+
 ## How to run
 
-Running the code is very simple, we will need 3 nodes: the relay, the client and the server.
+Running the code is very simple, we will need 3 machines: the relay, the client and the server.
 
 For the relay I will leave one running on this IP: `51.144.118.153`. The code is running on an Ubuntu VM on Azure and it just runs this command: `go run . r`. The only requeriment of this node is that the port specified in the code (11000) will be mapped to our machine's same port, so either port forwarding in your router or a public IP and no NAT (which is what I'm doing). Don't worry for the costs as I have some free Azure credits, but please notify me after testing it so I can shut it down and use the credits some other way (\*cough\* running Mysterium nodes \*cough\*)
 
@@ -41,3 +43,9 @@ If you want to see the zombie's moves during a game you should use this command 
 - Ubuntu: `tail -f ./data.txt`
 
 You can also see them on the server command line, but adding them on the client's command line was a problem as we also need to be typing there.
+
+## Problems and what I learnt
+
+This is the first time I use Go for developing a project and I really loved the language, it's really simple and easy to learn, but I'm sure I still have a lot to learn, if I used a language I'm more familiar with I would have probably divided the project in different layers (logic and communication in this case) so the logic is agnostic of the communication and therefore can be easily changed or reutilized in another project.
+
+One of the problems the project has is that if the client takes too much time to connect to the server after it is registered, the NAT translation might have already changed and the connection can fail, so there cannot be a lot of time between launching the server and the client. To minimize this problem, the client will send keep alive messages every 20 seconds to the server which he will reply to keep the connection active.
