@@ -46,6 +46,6 @@ You can also see them on the server command line, but adding them on the client'
 
 ## Problems and what I learned
 
-This is the first time I use Go for developing a project and I really loved the language, it's really simple and easy to learn, but I'm sure I still have a lot to learn, if I used a language I'm more familiar with I would have probably divided the project in different layers (logic and communication in this case) so the logic is agnostic of the communication and therefore can be easily changed or reutilized in another project.
+This is the first time I use Go for developing a project and I really loved the language, it's really simple and easy to learn, but I'm sure I still have a lot to learn. If I used a language I'm more familiar with, I would have probably divided the project in different layers (logic and communication in this case) so the logic is independent of the communication and therefore can be easily changed or reutilized in another project.
 
 One of the problems the project has is that if the client takes too much time to connect to the server after it is registered, the NAT translation might have already changed and the connection can fail, so there cannot be a lot of time between launching the server and the client. To minimize this problem, the client will send keep alive messages every 20 seconds to the server which he will reply to keep the connection active.
