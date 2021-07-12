@@ -28,7 +28,7 @@ The game server is a simple loop waiting for messages, here is a list of all the
 
 ## How to run
 
-Running the code is very simple, we will need 3 nodes. The relay, the client and the server.
+Running the code is very simple, we will need 3 nodes: the relay, the client and the server.
 
 For the relay I will leave one running on this IP: `51.144.118.153`. The code is running on an Ubuntu VM on Azure and it just runs this command: `go run . r`. The only requeriment of this node is that the port specified in the code (11000) will be mapped to our machine's same port, so either port forwarding in your router or a public IP and no NAT (which is what I'm doing). Don't worry for the costs as I have some free Azure credits, but please notify me after testing it so I can shut it down and use the credits some other way (\*cough\* running Mysterium nodes \*cough\*)
 
