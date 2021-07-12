@@ -44,7 +44,7 @@ If you want to see the zombie's moves during a game you should use this command 
 
 You can also see them on the server command line, but adding them on the client's command line was a problem as we also need to be typing there.
 
-## Problems and what I learnt
+## Problems and what I learned
 
 This is the first time I use Go for developing a project and I really loved the language, it's really simple and easy to learn, but I'm sure I still have a lot to learn, if I used a language I'm more familiar with I would have probably divided the project in different layers (logic and communication in this case) so the logic is agnostic of the communication and therefore can be easily changed or reutilized in another project.
 
