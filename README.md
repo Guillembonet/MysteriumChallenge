@@ -32,11 +32,11 @@ The game server is theoretically able to run multiple games simultaneously and h
 
 Running the code is very simple, we will need 3 machines: the relay, the client and the server.
 
-For the relay I will leave one running on this IP: `51.144.118.153`. The code is running on an Ubuntu VM on Azure and it just runs this command: `go run . r`. The only requeriment of this node is that the port specified in the code (11000) will be mapped to our machine's same port, so either port forwarding in your router or a public IP and no NAT (which is what I'm doing). Don't worry for the costs as I have some free Azure credits, but please notify me after testing it so I can shut it down and use the credits some other way (\*cough\* running Mysterium nodes \*cough\*)
+For the relay I will leave one running on this IP: `52.174.62.223`. The code is running on an Ubuntu VM on Azure and it just runs this command: `go run . r`. The only requeriment of this node is that the port specified in the code (11000) will be mapped to our machine's same port, so either port forwarding in your router or a public IP and no NAT (which is what I'm doing). Don't worry for the costs as I have some free Azure credits, but please notify me after testing it so I can shut it down and use the credits some other way (\*cough\* running Mysterium nodes \*cough\*)
 
 For running the client and the server, we will use the following commands:
-- Client: `go run . c 51.144.118.153`
-- Server: `go run . s 51.144.118.153`
+- Client: `go run . c 52.174.62.223`
+- Server: `go run . s 52.174.62.223`
 
 If you want to see the zombie's moves during a game you should use this command on the root of the repository folder:
 - Windows PowerShell: `Get-Content moves.txt -Wait`
